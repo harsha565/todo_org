@@ -15,13 +15,13 @@ export const AuthProvider = ({ children }) => {
 
         const initAuth = async () => {
             try {
-                // Safety Timeout: If Firebase takes > 5s, force stop loading
+                // Safety Timeout: If Firebase takes > 2.5s, force stop loading
                 const timeoutId = setTimeout(() => {
                     if (isMounted && loading) {
                         console.warn("Auth check timed out, forcing load completion");
                         setLoading(false);
                     }
-                }, 5000);
+                }, 2500);
 
                 const unsubscribe = await AuthService.checkUser((result) => {
                     clearTimeout(timeoutId);

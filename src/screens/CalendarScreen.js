@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions, Alert, useWindowDimensions } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 import { useTasks } from '../context/TaskContext';
 import FuturisticCalendar from '../components/FuturisticCalendar';
@@ -222,6 +222,9 @@ const CalendarScreen = ({ navigation }) => {
         };
     }).filter(Boolean);
 
+    const { width } = useWindowDimensions();
+    const isMobile = width < 768;
+
     return (
         <ScreenWrapper>
             <View style={styles.header}>
@@ -233,8 +236,8 @@ const CalendarScreen = ({ navigation }) => {
 
             <ScrollView contentContainerStyle={styles.content}>
 
-                <View style={styles.splitLayout}>
-                    <View style={styles.calendarSection}>
+                <View style={[styles.splitLayout, isMobile && styles.splitLayoutMobile]}>
+                    <View style={[styles.calendarSection, isMobile && styles.sectionMobile]}>
                         <FuturisticCalendar
                             selectedDate={selectedDate}
                             onSelectDate={handleDateSelect}
@@ -244,7 +247,7 @@ const CalendarScreen = ({ navigation }) => {
                         />
                     </View>
 
-                    <View style={styles.overviewSection}>
+                    <View style={[styles.overviewSection, isMobile && styles.sectionMobile]}>
                         <MonthlyOverview completionPercent={monthlyCompletion || 0} />
                     </View>
                 </View>
@@ -295,11 +298,18 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'stretch',
     },
+    splitLayoutMobile: {
+        flexDirection: 'column',
+    },
     calendarSection: {
         width: '48%',
     },
     overviewSection: {
         width: '48%',
+    },
+    sectionMobile: {
+        width: '100%',
+        marginBottom: 20,
     },
     overviewContainer: {
         backgroundColor: '#0a0a0a',
