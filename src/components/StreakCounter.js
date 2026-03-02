@@ -30,7 +30,7 @@ const AddStreakBtn = ({ onPress }) => (
     </View>
 );
 
-const StreakCounter = ({ tasks, onAddStreak }) => {
+const StreakCounter = ({ tasks, onAddStreak, stats }) => {
     // Filter only streak items
     const streakTasks = tasks.filter(t => t.isStreak);
 
@@ -42,10 +42,12 @@ const StreakCounter = ({ tasks, onAddStreak }) => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
+                {/* User Habit Streaks */}
                 {streakTasks.map(task => (
                     <StreakItem key={task.id} task={task} />
                 ))}
-                {/* Add Streak Button at the end */}
+
+                {/* Add Streak Button */}
                 <AddStreakBtn onPress={onAddStreak} />
             </ScrollView>
         </View>

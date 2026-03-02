@@ -10,6 +10,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import EvolutionScreen from './src/screens/EvolutionScreen';
 import LoadingScreen from './src/components/LoadingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -43,6 +45,8 @@ const AppNavigator = () => {
         <>
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="Calendar" component={CalendarScreen} />
+          <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+          <Stack.Screen name="Evolution" component={EvolutionScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
         </>
       )}

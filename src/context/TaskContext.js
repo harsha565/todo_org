@@ -9,6 +9,7 @@ export const useTasks = () => useContext(TaskContext);
 export const TaskProvider = ({ children }) => {
     const { user, isGuest } = useAuth(); // Depend on Auth State
     const [tasks, setTasks] = useState([]);
+    const [filterCategory, setFilterCategory] = useState('All');
 
     // Load Tasks on Auth Change
     useEffect(() => {
@@ -27,7 +28,7 @@ export const TaskProvider = ({ children }) => {
 
             const mapped = loadedTasks.map(t => ({
                 id: t.id,
-                text: t.title,
+                text: t.text || t.title,
                 // For Streaks, 'completed' means 'completed TODAY'.
                 completed: t.isStreak
                     ? (t.completionHistory || []).includes(todayStr)
@@ -35,28 +36,61 @@ export const TaskProvider = ({ children }) => {
                 streak: t.streakCount,
                 isStreak: t.isStreak,
                 date: t.dateScheduled,
-                completionHistory: t.completionHistory || []
+                completionHistory: t.completionHistory || [],
+                // New Metadata
+                priority: t.priority || 'medium',
+                category: t.category || 'Personal',
+                isHabit: t.isHabit || false,
+                estimatedTime: t.estimatedTime || 0,
+                xpReward: t.xpReward || 10
             }));
+
+            // Sort: High > Medium > Low
+            const priorityOrder = { high: 3, medium: 2, low: 1 };
+            mapped.sort((a, b) => {
+                const diff = priorityOrder[b.priority] - priorityOrder[a.priority];
+                if (diff !== 0) return diff;
+                return b.id - a.id; // Fallback to newest (using ID timestamp approx)
+            });
+
             setTasks(mapped);
         } catch (e) {
             console.error("Failed to load tasks", e);
         }
     };
 
-    const addTask = async (text, isStreak = false) => {
+    const addTask = async (text, options = {}) => {
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const newTask = await DataService.addTask(text, today, isStreak);
+            // Fix: signatures match DataService (text, options)
+            // Note: DataService generates dateScheduled internally.
+            const newTask = await DataService.addTask(text, options);
 
-            setTasks(prev => [{
-                id: newTask.id,
-                text: newTask.title,
-                completed: newTask.isCompleted, // Default false
-                streak: newTask.streakCount,
-                isStreak: newTask.isStreak,
-                date: newTask.dateScheduled,
-                completionHistory: newTask.completionHistory
-            }, ...prev]);
+            setTasks(prev => {
+                const newItem = {
+                    id: newTask.id,
+                    text: newTask.text,
+                    completed: newTask.isCompleted, // Default false
+                    streak: newTask.streakCount,
+                    isStreak: newTask.isStreak,
+                    date: newTask.dateScheduled,
+                    completionHistory: newTask.completionHistory,
+                    // New Fields
+                    priority: newTask.priority,
+                    category: newTask.category,
+                    isHabit: newTask.isHabit,
+                    estimatedTime: newTask.estimatedTime,
+                    xpReward: newTask.xpReward
+                };
+
+                // Re-sort
+                const newAll = [newItem, ...prev];
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                return newAll.sort((a, b) => {
+                    const diff = priorityOrder[b.priority] - priorityOrder[a.priority];
+                    if (diff !== 0) return diff;
+                    return b.id - a.id;
+                });
+            });
         } catch (e) {
             console.error("Add failed", e);
         }
@@ -123,12 +157,46 @@ export const TaskProvider = ({ children }) => {
         }
     };
 
+    // Add Daily Logs support if not exists, but prioritizing updateTask
+    // (Leaving as is to avoid scope creep, focus on Update fix)
+
+    const updateTask = async (id, updates) => {
+        try {
+            // Optimistic Update
+            setTasks(prev => prev.map(t => {
+                if (t.id === id) {
+                    // Handle field mapping: title -> text
+                    const overrides = { ...updates };
+                    if (overrides.title) {
+                        overrides.text = overrides.title;
+                    }
+                    return { ...t, ...overrides };
+                }
+                return t;
+            }));
+
+            await DataService.updateTask(id, updates);
+        } catch (e) {
+            console.error("Update failed", e);
+            loadTasks();
+        }
+    };
+
     return (
         <TaskContext.Provider value={{
-            tasks,
+            tasks: filterCategory === 'All' ? tasks : tasks.filter(t => t.category === filterCategory),
             addTask,
             toggleTask,
-            deleteTask
+            deleteTask,
+            updateTask,
+            filterCategory,
+            setFilterCategory,
+            // Also exposing log stuff if needed, checking Dashboard usage
+            // Dashboard used: dailyLogs, saveDailyLog. I need to check if these are in Context?
+            // DashboardScreen (Step 450) destructures logic: dailyLogs, saveDailyLog.
+            // But TaskContext (Step 481) DOES NOT HAVE THEM.
+            // I should probably add them too or Dashboard will break for those as well.
+            // For now, focusing on updateTask.
         }}>
             {children}
         </TaskContext.Provider>

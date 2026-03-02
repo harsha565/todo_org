@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SIZES } from '../constants/theme';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { COLORS, SIZES } from '../constants/theme';
 import { Flame } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 
+const { width, height } = Dimensions.get('window');
+
 const LoginScreen = () => {
-    const { login, register, loginAsGuest } = useAuth(); // Assuming 'register' is exposed in AuthContext
+    const { login, register, loginAsGuest } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isLogin, setIsLogin] = useState(true); // Toggle between Login/Register
+    const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [focusedInput, setFocusedInput] = useState(null);
 
     const handleSubmit = async () => {
         setLoading(true);
@@ -34,62 +38,104 @@ const LoginScreen = () => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.contentContainer}>
+        <View style={styles.container}>
+            {/* Static Radial Gradient Background */}
+            <View style={StyleSheet.absoluteFill}>
+                <Svg height="100%" width="100%">
+                    <Defs>
+                        <RadialGradient
+                            id="grad"
+                            cx="50%"
+                            cy="100%"
+                            rx="80%"
+                            ry="50%"
+                            fx="50%"
+                            fy="100%"
+                            gradientUnits="userSpaceOnUse"
+                        >
+                            <Stop offset="0%" stopColor="rgba(249,115,22,0.12)" stopOpacity="1" />
+                            <Stop offset="55%" stopColor="rgba(33,33,33,0.95)" stopOpacity="1" />
+                            <Stop offset="100%" stopColor="#212121" stopOpacity="1" />
+                        </RadialGradient>
+                    </Defs>
+                    <Rect x="0" y="0" width="100%" height="100%" fill="#212121" />
+                    <Rect x="0" y="0" width="100%" height="100%" fill="url(#grad)" />
+                </Svg>
+            </View>
+
+            <SafeAreaView style={styles.safeArea}>
                 <View style={styles.content}>
+
+                    {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.iconContainer}>
-                            <Flame color={COLORS.accent} size={64} fill={COLORS.accent} />
+                            <Flame color="#F97316" size={64} fill="#F97316" />
                         </View>
                         <Text style={styles.title}>StreakMaster</Text>
-                        <Text style={styles.subtitle}>{isLogin ? 'Ignite your potential.' : 'Start your journey.'}</Text>
+                        <Text style={styles.tagline}>Ignite your potential</Text>
                     </View>
 
+                    {/* Form */}
                     <View style={styles.form}>
                         {error && (
                             <Text style={styles.errorText}>{error}</Text>
                         )}
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Email</Text>
                             <TextInput
-                                style={styles.input}
-                                placeholder="Enter your email"
-                                placeholderTextColor={COLORS.secondaryText}
+                                style={[
+                                    styles.input,
+                                    focusedInput === 'email' && styles.inputFocused
+                                ]}
+                                placeholder="Enter email"
+                                placeholderTextColor="rgba(229,231,235,0.45)"
                                 value={email}
                                 onChangeText={setEmail}
+                                onFocus={() => setFocusedInput('email')}
+                                onBlur={() => setFocusedInput(null)}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
-                                selectionColor={COLORS.accent}
+                                selectionColor="#F97316"
                             />
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Password</Text>
                             <TextInput
-                                style={styles.input}
-                                placeholder="Enter your password"
-                                placeholderTextColor={COLORS.secondaryText}
+                                style={[
+                                    styles.input,
+                                    focusedInput === 'password' && styles.inputFocused
+                                ]}
+                                placeholder="Enter password"
+                                placeholderTextColor="rgba(229,231,235,0.45)"
                                 value={password}
                                 onChangeText={setPassword}
+                                onFocus={() => setFocusedInput('password')}
+                                onBlur={() => setFocusedInput(null)}
                                 secureTextEntry
-                                selectionColor={COLORS.accent}
+                                selectionColor="#F97316"
                             />
                         </View>
 
-                        <TouchableOpacity style={styles.loginButton} onPress={handleSubmit} disabled={loading}>
+                        <TouchableOpacity
+                            style={styles.ctaButton}
+                            onPress={handleSubmit}
+                            disabled={loading}
+                            activeOpacity={0.9}
+                        >
                             {loading ? (
                                 <ActivityIndicator color="#000" />
                             ) : (
-                                <Text style={styles.loginButtonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
+                                <Text style={styles.ctaText}>
+                                    {isLogin ? 'ACCESS YOUR POTENTIAL' : 'INITIATE SYSTEM'}
+                                </Text>
                             )}
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.switchButton} onPress={() => setIsLogin(!isLogin)}>
                             <Text style={styles.switchButtonText}>
-                                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                                {isLogin ? "New user? " : "Returning? "}
                                 <Text style={styles.highlight}>
-                                    {isLogin ? 'Sign Up' : 'Login'}
+                                    {isLogin ? 'Create Account' : 'Login'}
                                 </Text>
                             </Text>
                         </TouchableOpacity>
@@ -99,124 +145,116 @@ const LoginScreen = () => {
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
-        </SafeAreaView>
+            </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: '#212121', // Base color fallback
     },
-    contentContainer: {
+    safeArea: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     content: {
+        flex: 1,
         width: '100%',
-        maxWidth: 320,
+        maxWidth: 340,
         padding: SIZES.padding,
         justifyContent: 'center',
         alignSelf: 'center',
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 60,
     },
     iconContainer: {
         marginBottom: 20,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 25,
     },
     title: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: 'bold',
-        color: COLORS.text,
-        letterSpacing: 2,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: COLORS.secondaryText,
-        marginTop: 10,
+        color: '#FFFFFF',
         letterSpacing: 1,
+        marginBottom: 8,
+    },
+    tagline: {
+        fontSize: 15,
+        color: 'rgba(229,231,235,0.65)',
+        fontWeight: '400',
+        letterSpacing: 0.5,
     },
     form: {
         width: '100%',
     },
     inputContainer: {
-        marginBottom: 20,
-    },
-    label: {
-        color: COLORS.text,
-        marginBottom: 8,
-        fontWeight: '600',
-        fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        marginBottom: 16,
     },
     input: {
-        backgroundColor: COLORS.cardBg,
-        borderRadius: SIZES.radius,
-        padding: 14,
-        color: COLORS.text,
-        fontSize: 14,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 48,
+        color: '#E5E7EB',
+        fontSize: 15,
         borderWidth: 1,
-        borderColor: '#333',
+        borderColor: 'rgba(255,255,255,0.08)',
     },
-    loginButton: {
-        backgroundColor: COLORS.accent,
-        padding: 16,
-        borderRadius: SIZES.radius,
+    inputFocused: {
+        borderColor: 'rgba(249,115,22,0.45)', // Focus Border
+    },
+    ctaButton: {
+        backgroundColor: '#F97316',
+        borderRadius: 14,
+        height: 52,
         alignItems: 'center',
-        marginTop: 10,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        elevation: 8,
+        justifyContent: 'center',
+        marginTop: 24,
+        shadowColor: '#F97316',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 20,
+        elevation: 10,
     },
-    loginButtonText: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: 'bold',
+    ctaText: {
+        color: '#000000',
+        fontSize: 15,
+        fontWeight: '600',
+        letterSpacing: 0.4,
         textTransform: 'uppercase',
     },
-    guestButton: {
-        padding: 16,
-        borderRadius: SIZES.radius,
-        alignItems: 'center',
-        marginTop: 10,
-        borderWidth: 1,
-        borderColor: '#333',
-    },
-    guestButtonText: {
-        color: COLORS.secondaryText,
-        fontSize: 14,
-    },
     switchButton: {
-        marginTop: 20,
+        marginTop: 24,
         alignItems: 'center',
     },
     switchButtonText: {
-        color: COLORS.secondaryText,
-        fontSize: 14,
+        color: 'rgba(229,231,235,0.45)',
+        fontSize: 13,
     },
     highlight: {
-        color: COLORS.accent,
-        fontWeight: 'bold',
+        color: '#F97316',
+        fontWeight: '600',
+    },
+    guestButton: {
+        marginTop: 16,
+        alignItems: 'center',
+        padding: 8,
+    },
+    guestButtonText: {
+        color: 'rgba(229,231,235,0.45)',
+        fontSize: 12,
+        textDecorationLine: 'none', // Removed underline as per visual priority "low"
     },
     errorText: {
-        color: 'red',
+        color: '#EF4444',
         marginBottom: 20,
         textAlign: 'center',
-        backgroundColor: 'rgba(255, 0, 0, 0.1)',
-        padding: 10,
-        borderRadius: 5,
-        overflow: 'hidden',
+        fontSize: 13,
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        padding: 8,
+        borderRadius: 8,
     }
 });
 
