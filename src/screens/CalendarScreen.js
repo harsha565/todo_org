@@ -4,7 +4,7 @@ import { COLORS, SIZES } from '../constants/theme';
 import { useTasks } from '../context/TaskContext';
 import FuturisticCalendar from '../components/FuturisticCalendar';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
-import { ArrowLeft, X, Plus, Check, Trash2, Edit2, Calendar } from 'lucide-react-native';
+import { ArrowLeft, X, Plus, Check, Trash2, Edit2, Calendar, CheckCircle, Circle as LucideCircle, MinusCircle } from 'lucide-react-native';
 import ScreenWrapper from '../components/ScreenWrapper';
 import Svg, { Circle } from 'react-native-svg';
 import TaskInputModal from '../components/TaskInputModal';
@@ -58,13 +58,16 @@ const MonthlyOverview = ({ completionPercent }) => {
 const DayDetailModal = ({ visible, date, onClose, tasks, onAddTask, onToggleTask, onDeleteTask, onEditTask, hasLog, onEditLog, dailyLog }) => {
     const [isAddModalVisible, setAddModalVisible] = useState(false);
 
-    const modalHeight = SCREEN_HEIGHT * 0.75;
+    const modalHeight = SCREEN_HEIGHT * 0.8;
     const viewDateStr = format(date, 'yyyy-MM-dd');
     const todayStr = new Date().toISOString().split('T')[0];
     const isPast = viewDateStr < todayStr;
     const isToday = viewDateStr === todayStr;
 
-    // --- Archive Viewer Component ---
+    const streakTasks = tasks.filter(t => t.source === 'streak');
+    const completedTasks = tasks.filter(t => t.source !== 'streak' && t.completed);
+    const notCompletedTasks = tasks.filter(t => t.source !== 'streak' && !t.completed);
+
     const LogSummary = ({ log }) => {
         const { day_score, performance_grade, energy, focus, mood, win, struggle } = log;
         let gradeColor = COLORS.primary;
@@ -75,10 +78,10 @@ const DayDetailModal = ({ visible, date, onClose, tasks, onAddTask, onToggleTask
         const StatBar = ({ label, value, color }) => (
             <View style={{ marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: '#888', fontSize: 10 }}>{label}</Text>
+                    <Text style={{ color: '#888', fontSize: 10, textTransform: 'uppercase' }}>{label}</Text>
                     <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>{value}/5</Text>
                 </View>
-                <View style={{ height: 6, backgroundColor: '#333', borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
                     <View style={{ width: `${(value / 5) * 100}%`, height: '100%', backgroundColor: color }} />
                 </View>
             </View>
@@ -114,101 +117,147 @@ const DayDetailModal = ({ visible, date, onClose, tasks, onAddTask, onToggleTask
                 ) : null}
 
                 <TouchableOpacity style={styles.editSummaryBtn} onPress={onEditLog}>
-                    <Edit2 size={14} color="#666" style={{ marginRight: 6 }} />
+                    <Edit2 size={12} color="#666" style={{ marginRight: 6 }} />
                     <Text style={styles.editSummaryText}>Edit Reflection</Text>
                 </TouchableOpacity>
             </View>
         );
     };
 
+    const renderEmptyState = () => (
+        <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No tasks were created on this day.</Text>
+        </View>
+    );
+
     return (
         <Modal
-            animationType="fade"
+            animationType="slide"
             transparent={true}
             visible={visible}
             onRequestClose={onClose}
         >
             <View style={styles.modalOverlay}>
-                <View style={[styles.detailModalContent, { height: modalHeight }]}>
+                <View style={[styles.detailModalContent, { maxHeight: modalHeight }]}>
+
                     <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>{format(date, 'MMMM do')}</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <X color={COLORS.secondaryText} size={24} />
+                        <View>
+                            <Text style={styles.modalTitle}>{format(date, 'EEEE, MMMM do')}</Text>
+                            <View style={styles.badgeLine}>
+                                <View style={styles.dayBadge}>
+                                    <Text style={styles.dayBadgeText}>{isToday ? "Today" : isPast ? "Past Day" : "Future"}</Text>
+                                </View>
+                            </View>
+                        </View>
+                        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                            <X color="rgba(255,255,255,0.6)" size={24} />
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={styles.taskListContainer}>
-                        {/* 1. Archive View (if log exists) */}
+                    <ScrollView style={styles.taskListContainer} showsVerticalScrollIndicator={false}>
                         {hasLog && dailyLog && <LogSummary log={dailyLog} />}
 
-                        {/* 2. Tasks Label */}
-                        <Text style={styles.sectionLabel}>MISSIONS</Text>
-
-                        {tasks.length > 0 ? (
-                            tasks.map(task => (
-                                <View key={task.id} style={styles.modalTaskRow}>
-                                    <View style={styles.taskContent}>
-                                        <TouchableOpacity onPress={() => onToggleTask(task.id)}>
-                                            <View style={[styles.statusIndicator]}>
-                                                {task.completed ? (
-                                                    <Check size={20} color={COLORS.success} strokeWidth={3} />
-                                                ) : (
-                                                    <X size={20} color={COLORS.danger} strokeWidth={3} />
-                                                )}
-                                            </View>
-                                        </TouchableOpacity>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[styles.modalTaskText, task.completed && styles.textLineThrough]} numberOfLines={1}>
-                                                {task.text}
-                                            </Text>
-                                            {task.source === 'streak' && (
-                                                <View style={styles.streakTag}>
-                                                    <Text style={styles.streakTagText}>streak</Text>
-                                                </View>
-                                            )}
+                        {tasks.length === 0 ? renderEmptyState() : (
+                            <>
+                                {/* SECTION: Streak Tasks */}
+                                {streakTasks.length > 0 && (
+                                    <View style={styles.taskGroup}>
+                                        <View style={styles.groupHeader}>
+                                            <Text style={styles.groupTitle}>Streak Tasks</Text>
+                                            <Text style={styles.groupSubtitle}>Habits active on this day</Text>
                                         </View>
+                                        {streakTasks.map(task => (
+                                            <TouchableOpacity
+                                                key={task.id}
+                                                style={styles.streakRow}
+                                                onPress={() => onToggleTask(task.id)}
+                                            >
+                                                <View style={styles.streakInfo}>
+                                                    <View style={styles.statusIcon}>
+                                                        {task.completed ? (
+                                                            <CheckCircle size={20} color="#2ECC71" />
+                                                        ) : (
+                                                            <LucideCircle size={20} color="rgba(255,255,255,0.3)" />
+                                                        )}
+                                                    </View>
+                                                    <Text style={[styles.streakText, task.completed && styles.streakTextDone]}>{task.text}</Text>
+                                                </View>
+                                                <Text style={styles.streakCount}>{task.streak || 0} 🔥</Text>
+                                            </TouchableOpacity>
+                                        ))}
                                     </View>
+                                )}
 
-                                    {(!isPast || isToday) && (
-                                        <TouchableOpacity
-                                            style={styles.deleteBtn}
-                                            onPress={() => onEditTask(task)}
-                                        >
-                                            <Edit2 size={20} color="#FFF" />
-                                        </TouchableOpacity>
-                                    )}
+                                {/* SECTION: Completed Tasks */}
+                                {completedTasks.length > 0 && (
+                                    <View style={styles.taskGroup}>
+                                        <View style={styles.groupHeader}>
+                                            <Text style={styles.groupTitle}>Completed Tasks</Text>
+                                        </View>
+                                        {completedTasks.map(task => (
+                                            <View key={task.id} style={[styles.normalRow, styles.normalRowDone]}>
+                                                <TouchableOpacity style={styles.normalContent} onPress={() => onToggleTask(task.id)}>
+                                                    <View style={styles.statusIcon}>
+                                                        <Check size={18} color="#2ECC71" />
+                                                    </View>
+                                                    <Text style={styles.normalTextDone}>{task.text}</Text>
+                                                </TouchableOpacity>
+                                                {(!isPast || isToday) && (
+                                                    <TouchableOpacity onPress={() => onEditTask(task)} style={styles.actionIcon}>
+                                                        <Edit2 size={16} color="rgba(255,255,255,0.4)" />
+                                                    </TouchableOpacity>
+                                                )}
+                                                <TouchableOpacity onPress={() => onDeleteTask(task.id)} style={styles.actionIcon}>
+                                                    <Trash2 size={16} color="rgba(255,255,255,0.4)" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
 
-                                    <TouchableOpacity
-                                        style={styles.deleteBtn}
-                                        onPress={() => onDeleteTask(task.id)}
-                                    >
-                                        <Trash2 size={18} color={COLORS.error || '#ff4444'} />
-                                    </TouchableOpacity>
-                                </View>
-                            ))
-                        ) : (
-                            <Text style={styles.placeholderText}>
-                                No tasks for this day.
-                            </Text>
+                                {/* SECTION: Not Completed Tasks */}
+                                {notCompletedTasks.length > 0 && (
+                                    <View style={styles.taskGroup}>
+                                        <View style={styles.groupHeader}>
+                                            <Text style={styles.groupTitle}>Not Completed</Text>
+                                        </View>
+                                        {notCompletedTasks.map(task => (
+                                            <View key={task.id} style={styles.normalRow}>
+                                                <TouchableOpacity style={styles.normalContent} onPress={() => onToggleTask(task.id)}>
+                                                    <View style={styles.statusIcon}>
+                                                        <MinusCircle size={18} color="rgba(255,255,255,0.4)" />
+                                                    </View>
+                                                    <Text style={styles.normalTextPending}>{task.text}</Text>
+                                                </TouchableOpacity>
+                                                {(!isPast || isToday) && (
+                                                    <TouchableOpacity onPress={() => onEditTask(task)} style={styles.actionIcon}>
+                                                        <Edit2 size={16} color="rgba(255,255,255,0.4)" />
+                                                    </TouchableOpacity>
+                                                )}
+                                                <TouchableOpacity onPress={() => onDeleteTask(task.id)} style={styles.actionIcon}>
+                                                    <Trash2 size={16} color="rgba(239,68,68,0.6)" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </>
                         )}
                     </ScrollView>
 
                     <View style={styles.actionRow}>
                         {!isPast && (
                             <TouchableOpacity style={styles.addDayTaskBtn} onPress={() => setAddModalVisible(true)}>
-                                <Plus color="#000" size={20} />
+                                <Plus color="#FFF" size={20} />
                                 <Text style={styles.addDayTaskText}>Add Mission</Text>
                             </TouchableOpacity>
                         )}
 
                         {!hasLog && (
-                            <TouchableOpacity
-                                style={[styles.editLogBtn, isPast && { flex: 1 }]}
-                                onPress={onEditLog}
-                            >
-                                <Calendar color="#666" size={18} />
+                            <TouchableOpacity style={styles.editLogBtn} onPress={onEditLog}>
+                                <Calendar color="#AAA" size={18} />
                                 <Text style={styles.editLogText}>
-                                    {isPast ? "Create Retroactive Log" : "Log Day"}
+                                    {isPast ? "Retroactive Log" : "Log Day"}
                                 </Text>
                             </TouchableOpacity>
                         )}
@@ -218,7 +267,7 @@ const DayDetailModal = ({ visible, date, onClose, tasks, onAddTask, onToggleTask
                         visible={isAddModalVisible}
                         onClose={() => setAddModalVisible(false)}
                         onAddTask={onAddTask}
-                        title={`New Mission for ${format(date, 'MMM d')}`}
+                        title={`New Mission`}
                     />
                 </View>
             </View>
@@ -359,9 +408,9 @@ const CalendarScreen = ({ navigation }) => {
     // MERGE ALL TASKS - Show ALL tasks for selected date (streak + normal)
     const dailyTasks = (tasks || []).reduce((acc, task) => {
         if (!task) return acc;
-        
+
         const selectedStr = formattedSelectedDate;
-        
+
         if (task.isStreak) {
             // STREAK: Show if created on or before selected date (ongoing streaks)
             if (task.date <= selectedStr) {
@@ -382,7 +431,7 @@ const CalendarScreen = ({ navigation }) => {
                 });
             }
         }
-        
+
         return acc;
     }, []);
 
@@ -540,157 +589,193 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.85)',
         justifyContent: 'center',
-        alignItems: 'center', // Center horizontally
     },
     detailModalContent: {
-        backgroundColor: '#050505',
-        borderRadius: 25,
-        padding: 24,
+        backgroundColor: '#151821', // Dark productivity background
+        borderRadius: 20,
+        padding: 30, // 32px spec, adjusted slightly for mobile safety
         borderWidth: 1,
-        borderColor: '#333',
-        width: '90%', // 90% width of screen
-        maxWidth: 400,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 25,
+        borderColor: 'rgba(255,255,255,0.06)',
+        width: '90%',
+        alignSelf: 'center',
+        maxWidth: 520, // max width from spec
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.8,
+        shadowRadius: 30,
         elevation: 20,
-        // Height is set dynamically in component
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#222',
-        paddingBottom: 15,
+        alignItems: 'flex-start',
+        marginBottom: 24,
     },
     modalTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: COLORS.accent,
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
+    },
+    badgeLine: {
+        marginTop: 6,
+    },
+    dayBadge: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: 'flex-start',
+    },
+    dayBadgeText: {
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: 10,
+        fontWeight: '600',
+        textTransform: 'uppercase',
         letterSpacing: 1,
     },
+    closeBtn: {
+        padding: 4,
+    },
     taskListContainer: {
-        flex: 1,
-        marginBottom: 20,
+        flexGrow: 0,
+        marginBottom: 10,
     },
-    modalTaskRow: {
-        flexDirection: 'row',
+    emptyState: {
         alignItems: 'center',
-        marginBottom: 12,
-        backgroundColor: '#111',
-        padding: 12,
-        borderRadius: 12,
-        justifyContent: 'space-between',
+        paddingVertical: 40,
     },
-    taskContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    modalTaskText: {
-        color: COLORS.text,
-        fontSize: 16,
-        marginLeft: 12,
-        flex: 1,
-    },
-    deleteBtn: {
-        padding: 5,
-        marginLeft: 10,
-    },
-    textLineThrough: {
-        textDecorationLine: 'line-through',
-        color: COLORS.secondaryText,
-    },
-    placeholderText: {
-        color: COLORS.secondaryText,
+    emptyStateText: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 14,
         fontStyle: 'italic',
-        textAlign: 'center',
-        marginTop: 20,
     },
-    addDayTaskBtn: {
-        backgroundColor: COLORS.accent,
+    taskGroup: {
+        marginBottom: 24,
+    },
+    groupHeader: {
+        marginBottom: 12,
+    },
+    groupTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
+    },
+    groupSubtitle: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.4)',
+        marginTop: 2,
+    },
+    streakRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        borderRadius: 15,
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 12,
+        marginBottom: 8,
     },
-    addDayTaskText: {
-        color: '#000',
-        fontWeight: 'bold',
-        marginLeft: 8,
-        fontSize: 16,
-    },
-    streakTag: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-        alignSelf: 'flex-start',
-        marginTop: 4,
-        marginLeft: 12
-    },
-    streakTagText: {
-        fontSize: 10,
-        color: COLORS.secondaryText,
-        textTransform: 'lowercase'
-    },
-    statusIndicator: {
-        width: 24,
-        height: 24,
+    streakInfo: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 10,
+        flex: 1,
     },
-    // checkbox: { ... } // Removed
-    // checkboxActive: { ... } // Removed
+    statusIcon: {
+        marginRight: 12,
+    },
+    streakText: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    streakTextDone: {
+        color: 'rgba(255,255,255,0.5)',
+        textDecorationLine: 'line-through',
+    },
+    streakCount: {
+        color: '#FFD700',
+        fontSize: 13,
+        fontWeight: 'bold',
+    },
+    normalRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: 'transparent',
+        borderRadius: 12,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.04)',
+    },
+    normalRowDone: {
+        backgroundColor: 'rgba(46,204,113,0.08)',
+        borderColor: 'transparent',
+    },
+    normalContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    normalTextDone: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 14,
+    },
+    normalTextPending: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 14,
+    },
+    actionIcon: {
+        padding: 8,
+        marginLeft: 4,
+    },
     actionRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 10,
-        gap: 10
+        gap: 12,
     },
     addDayTaskBtn: {
-        backgroundColor: COLORS.accent,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 16,
-        borderRadius: 15,
+        padding: 14,
+        borderRadius: 12,
         flex: 1,
     },
-    editLogBtn: {
-        backgroundColor: '#222',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        borderRadius: 15,
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#333'
-    },
-    editLogBtnActive: {
-        borderColor: COLORS.accent,
-        backgroundColor: 'rgba(0, 224, 255, 0.1)'
-    },
-    editLogText: {
-        color: '#666',
-        fontWeight: 'bold',
+    addDayTaskText: {
+        color: '#FFF',
+        fontWeight: '600',
         marginLeft: 8,
         fontSize: 14,
     },
-    /* Archive Viewer Styles */
+    editLogBtn: {
+        backgroundColor: 'transparent',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 14,
+        borderRadius: 12,
+        flex: 1,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    editLogText: {
+        color: '#AAA',
+        fontWeight: '600',
+        marginLeft: 8,
+        fontSize: 14,
+    },
     logSummaryContainer: {
-        backgroundColor: '#111',
+        backgroundColor: 'rgba(255,255,255,0.02)',
         borderRadius: 16,
         padding: 16,
-        marginBottom: 20,
+        marginBottom: 24,
         borderWidth: 1,
-        borderColor: '#333'
+        borderColor: 'rgba(255,255,255,0.04)'
     },
     logHeader: {
         flexDirection: 'row',
@@ -731,12 +816,10 @@ const styles = StyleSheet.create({
     moodBox: {
         width: 50,
         height: 50,
-        borderRadius: 12,
-        backgroundColor: '#1A1A1A',
+        borderRadius: 25,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#333'
     },
     quoteBlock: {
         borderLeftWidth: 2,
@@ -762,14 +845,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
-        backgroundColor: '#1A1A1A',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#333'
+        paddingVertical: 10,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 10,
     },
     editSummaryText: {
-        color: '#888',
+        color: 'rgba(255,255,255,0.5)',
         fontSize: 12,
         fontWeight: '600'
     },
