@@ -66,7 +66,7 @@ const FuturisticCalendar = ({ selectedDate, onSelectDate, currentMonth, onMonthC
 
         // Filter tasks for this specific date
         // Logic:
-        // 1. Streaks: Always exist. Check completionHistory for this date.
+        // 1. Habits: startDate <= date and (endDate is null or endDate >= date)
         // 2. Missions: Exist only if dateScheduled matches. Check isCompleted.
 
         let total = 0;
@@ -74,9 +74,11 @@ const FuturisticCalendar = ({ selectedDate, onSelectDate, currentMonth, onMonthC
 
         tasks.forEach(task => {
             if (task.isStreak) {
-                total++;
-                if (task.completionHistory && task.completionHistory.includes(dateStr)) {
-                    completed++;
+                if (task.date <= dateStr && (!task.endDate || task.endDate >= dateStr)) {
+                    total++;
+                    if (task.completionHistory && task.completionHistory.includes(dateStr)) {
+                        completed++;
+                    }
                 }
             } else {
                 // Normal Mission

@@ -4,7 +4,7 @@ import { COLORS, SIZES } from '../constants/theme';
 import { useTasks } from '../context/TaskContext';
 import FuturisticCalendar from '../components/FuturisticCalendar';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
-import { ArrowLeft, X, Plus, Check, Trash2, Edit2, Calendar, CheckCircle, Circle as LucideCircle, MinusCircle } from 'lucide-react-native';
+import { ArrowLeft, X, Plus, Check, Trash2, Edit2, Calendar, CheckCircle, Circle as LucideCircle, MinusCircle, Flame } from 'lucide-react-native';
 import ScreenWrapper from '../components/ScreenWrapper';
 import Svg, { Circle } from 'react-native-svg';
 import TaskInputModal from '../components/TaskInputModal';
@@ -159,11 +159,11 @@ const DayDetailModal = ({ visible, date, onClose, tasks, onAddTask, onToggleTask
 
                         {tasks.length === 0 ? renderEmptyState() : (
                             <>
-                                {/* SECTION: Streak Tasks */}
+                                {/* SECTION: Habit Tasks */}
                                 {streakTasks.length > 0 && (
                                     <View style={styles.taskGroup}>
                                         <View style={styles.groupHeader}>
-                                            <Text style={styles.groupTitle}>Streak Tasks</Text>
+                                            <Text style={styles.groupTitle}>Habit Tasks</Text>
                                             <Text style={styles.groupSubtitle}>Habits active on this day</Text>
                                         </View>
                                         {streakTasks.map(task => (
@@ -182,7 +182,10 @@ const DayDetailModal = ({ visible, date, onClose, tasks, onAddTask, onToggleTask
                                                     </View>
                                                     <Text style={[styles.streakText, task.completed && styles.streakTextDone]}>{task.text}</Text>
                                                 </View>
-                                                <Text style={styles.streakCount}>{task.streak || 0} 🔥</Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <Flame size={14} color="#FF6A1A" style={{ marginRight: 4 }} />
+                                                    <Text style={styles.streakCount}>{task.streak || 0}</Text>
+                                                </View>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -405,18 +408,38 @@ const CalendarScreen = ({ navigation }) => {
     const monthlyCompletion = calculateMonthlyStats();
 
     // --- DAILY DETAIL FILTERING ---
-    // MERGE ALL TASKS - Show ALL tasks for selected date (streak + normal)
+    // MERGE ALL TASKS - Show ALL tasks for selected date (habit + normal)
     const dailyTasks = (tasks || []).reduce((acc, task) => {
         if (!task) return acc;
 
         const selectedStr = formattedSelectedDate;
 
         if (task.isStreak) {
-            // STREAK: Show if created on or before selected date (ongoing streaks)
-            if (task.date <= selectedStr) {
+            // HABIT: Show if created on or before selected date, and (no endDate or endDate >= selectedDate)
+            if (task.date <= selectedStr && (!task.endDate || task.endDate >= selectedStr)) {
                 const isCompletedOnDate = task.completionHistory && task.completionHistory.includes(selectedStr);
+
+                // Calculate streak dynamically up to the selected date
+                let currentStreak = 0;
+                let cDate = new Date(selectedDate);
+                // If it's not completed on selectedDate, count backwards from the day before
+                if (!isCompletedOnDate) {
+                    cDate.setDate(cDate.getDate() - 1);
+                }
+                while (true) {
+                    const dStr = format(cDate, 'yyyy-MM-dd');
+                    if (dStr < task.date) break; // Before start date
+                    if (task.completionHistory && task.completionHistory.includes(dStr)) {
+                        currentStreak++;
+                        cDate.setDate(cDate.getDate() - 1);
+                    } else {
+                        break;
+                    }
+                }
+
                 acc.push({
                     ...task,
+                    streak: currentStreak > 0 ? currentStreak : (isCompletedOnDate ? 1 : 0),
                     completed: isCompletedOnDate,
                     source: 'streak'
                 });
@@ -695,7 +718,7 @@ const styles = StyleSheet.create({
         textDecorationLine: 'line-through',
     },
     streakCount: {
-        color: '#FFD700',
+        color: '#FF6A1A',
         fontSize: 13,
         fontWeight: 'bold',
     },
